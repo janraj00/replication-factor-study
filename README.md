@@ -1,4 +1,4 @@
-# Replication Factor Study: Distributed SQL vs HDFS
+﻿# Replication Factor Study: Distributed SQL vs HDFS
 
 This repository contains a reproducible experiment scaffold for comparing replication-factor tuning in:
 
@@ -207,6 +207,9 @@ python experiments/hdfs/analyze_results.py --results-dir results/hdfs_rf_sweep
 
 Analysis writes per-run summaries plus grouped `summary_grouped.csv` / `.xlsx` files with mean, standard deviation, and count fields suitable for plotting error bars.
 
+## Preliminary Data
+
+Small curated preliminary CSV files are tracked under `paper/data/preliminary/` so the repository shows representative outputs without committing the full generated `results/` tree. These files are smoke/local-seed evidence only; final claims should use longer paper-grade runs with repetitions and validation.
 ## Interpretation Warning
 
 Smoke results show that the pipeline works and can expose obvious failures or broad directional hints. They should not be used as evidence for final paper claims without longer durations, repetitions, validation, and grouped analysis.
@@ -214,3 +217,4 @@ Smoke results show that the pipeline works and can expose obvious failures or br
 ## Cloud phase
 
 Start locally first. Once CSV generation is stable, reuse the same experimental logic with remote hosts. See `infra/cloud/README.md`.
+
