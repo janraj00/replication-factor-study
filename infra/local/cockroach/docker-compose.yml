@@ -1,0 +1,74 @@
+services:
+  crdb1:
+    image: cockroachdb/cockroach:v26.2.0
+    hostname: crdb1
+    command: ["start", "--insecure", "--listen-addr=0.0.0.0:26257", "--advertise-addr=crdb1:26257", "--http-addr=0.0.0.0:8080", "--join=crdb1:26257,crdb2:26257,crdb3:26257,crdb4:26257,crdb5:26257,crdb6:26257,crdb7:26257,crdb8:26257,crdb9:26257", "--locality=region=us-west,zone=z1", "--cache=64MiB", "--max-sql-memory=64MiB"]
+    ports: ["26257:26257", "8080:8080"]
+    volumes: [crdb1:/cockroach/cockroach-data]
+
+  crdb2:
+    image: cockroachdb/cockroach:v26.2.0
+    hostname: crdb2
+    command: ["start", "--insecure", "--listen-addr=0.0.0.0:26257", "--advertise-addr=crdb2:26257", "--http-addr=0.0.0.0:8080", "--join=crdb1:26257,crdb2:26257,crdb3:26257,crdb4:26257,crdb5:26257,crdb6:26257,crdb7:26257,crdb8:26257,crdb9:26257", "--locality=region=us-central,zone=z2", "--cache=64MiB", "--max-sql-memory=64MiB"]
+    ports: ["26261:26257", "8081:8080"]
+    volumes: [crdb2:/cockroach/cockroach-data]
+
+  crdb3:
+    image: cockroachdb/cockroach:v26.2.0
+    hostname: crdb3
+    command: ["start", "--insecure", "--listen-addr=0.0.0.0:26257", "--advertise-addr=crdb3:26257", "--http-addr=0.0.0.0:8080", "--join=crdb1:26257,crdb2:26257,crdb3:26257,crdb4:26257,crdb5:26257,crdb6:26257,crdb7:26257,crdb8:26257,crdb9:26257", "--locality=region=us-east,zone=z3", "--cache=64MiB", "--max-sql-memory=64MiB"]
+    ports: ["26264:26257", "8082:8080"]
+    volumes: [crdb3:/cockroach/cockroach-data]
+
+  crdb4:
+    image: cockroachdb/cockroach:v26.2.0
+    hostname: crdb4
+    command: ["start", "--insecure", "--listen-addr=0.0.0.0:26257", "--advertise-addr=crdb4:26257", "--http-addr=0.0.0.0:8080", "--join=crdb1:26257,crdb2:26257,crdb3:26257,crdb4:26257,crdb5:26257,crdb6:26257,crdb7:26257,crdb8:26257,crdb9:26257", "--locality=region=us-east,zone=z1", "--cache=64MiB", "--max-sql-memory=64MiB"]
+    ports: ["26265:26257", "8083:8080"]
+    volumes: [crdb4:/cockroach/cockroach-data]
+
+  crdb5:
+    image: cockroachdb/cockroach:v26.2.0
+    hostname: crdb5
+    command: ["start", "--insecure", "--listen-addr=0.0.0.0:26257", "--advertise-addr=crdb5:26257", "--http-addr=0.0.0.0:8080", "--join=crdb1:26257,crdb2:26257,crdb3:26257,crdb4:26257,crdb5:26257,crdb6:26257,crdb7:26257,crdb8:26257,crdb9:26257", "--locality=region=us-west,zone=z2", "--cache=64MiB", "--max-sql-memory=64MiB"]
+    ports: ["26259:26257", "8084:8080"]
+    volumes: [crdb5:/cockroach/cockroach-data]
+
+  crdb6:
+    image: cockroachdb/cockroach:v26.2.0
+    hostname: crdb6
+    command: ["start", "--insecure", "--listen-addr=0.0.0.0:26257", "--advertise-addr=crdb6:26257", "--http-addr=0.0.0.0:8080", "--join=crdb1:26257,crdb2:26257,crdb3:26257,crdb4:26257,crdb5:26257,crdb6:26257,crdb7:26257,crdb8:26257,crdb9:26257", "--locality=region=us-east,zone=z2", "--cache=64MiB", "--max-sql-memory=64MiB"]
+    ports: ["26262:26257", "8085:8080"]
+    volumes: [crdb6:/cockroach/cockroach-data]
+
+  crdb7:
+    image: cockroachdb/cockroach:v26.2.0
+    hostname: crdb7
+    command: ["start", "--insecure", "--listen-addr=0.0.0.0:26257", "--advertise-addr=crdb7:26257", "--http-addr=0.0.0.0:8080", "--join=crdb1:26257,crdb2:26257,crdb3:26257,crdb4:26257,crdb5:26257,crdb6:26257,crdb7:26257,crdb8:26257,crdb9:26257", "--locality=region=us-west,zone=z3", "--cache=64MiB", "--max-sql-memory=64MiB"]
+    ports: ["26258:26257", "8086:8080"]
+    volumes: [crdb7:/cockroach/cockroach-data]
+
+  crdb8:
+    image: cockroachdb/cockroach:v26.2.0
+    hostname: crdb8
+    command: ["start", "--insecure", "--listen-addr=0.0.0.0:26257", "--advertise-addr=crdb8:26257", "--http-addr=0.0.0.0:8080", "--join=crdb1:26257,crdb2:26257,crdb3:26257,crdb4:26257,crdb5:26257,crdb6:26257,crdb7:26257,crdb8:26257,crdb9:26257", "--locality=region=us-central,zone=z3", "--cache=64MiB", "--max-sql-memory=64MiB"]
+    ports: ["26263:26257", "8087:8080"]
+    volumes: [crdb8:/cockroach/cockroach-data]
+
+  crdb9:
+    image: cockroachdb/cockroach:v26.2.0
+    hostname: crdb9
+    command: ["start", "--insecure", "--listen-addr=0.0.0.0:26257", "--advertise-addr=crdb9:26257", "--http-addr=0.0.0.0:8080", "--join=crdb1:26257,crdb2:26257,crdb3:26257,crdb4:26257,crdb5:26257,crdb6:26257,crdb7:26257,crdb8:26257,crdb9:26257", "--locality=region=us-central,zone=z1", "--cache=64MiB", "--max-sql-memory=64MiB"]
+    ports: ["26260:26257", "8088:8080"]
+    volumes: [crdb9:/cockroach/cockroach-data]
+
+volumes:
+  crdb1:
+  crdb2:
+  crdb3:
+  crdb4:
+  crdb5:
+  crdb6:
+  crdb7:
+  crdb8:
+  crdb9:

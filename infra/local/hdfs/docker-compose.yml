@@ -1,0 +1,82 @@
+services:
+  namenode:
+    image: apache/hadoop:3.5.0
+    hostname: namenode
+    container_name: hdfs-namenode
+    user: root
+    command: ["/bin/bash", "/opt/bootstrap/namenode.sh"]
+    environment:
+      HADOOP_CONF_DIR: /opt/hadoop/etc/hadoop
+    ports: ["9870:9870", "9000:9000"]
+    volumes:
+      - ./conf:/opt/hadoop/etc/hadoop
+      - ./bootstrap:/opt/bootstrap
+      - namenode-data:/hadoop/dfs/name
+
+  datanode1:
+    image: apache/hadoop:3.5.0
+    hostname: datanode1
+    container_name: hdfs-datanode1
+    user: root
+    command: ["/bin/bash", "/opt/bootstrap/datanode.sh"]
+    environment: { HADOOP_CONF_DIR: /opt/hadoop/etc/hadoop }
+    volumes: ["./conf:/opt/hadoop/etc/hadoop", "./bootstrap:/opt/bootstrap", "datanode1-data:/hadoop/dfs/data"]
+    depends_on: [namenode]
+
+  datanode2:
+    image: apache/hadoop:3.5.0
+    hostname: datanode2
+    container_name: hdfs-datanode2
+    user: root
+    command: ["/bin/bash", "/opt/bootstrap/datanode.sh"]
+    environment: { HADOOP_CONF_DIR: /opt/hadoop/etc/hadoop }
+    volumes: ["./conf:/opt/hadoop/etc/hadoop", "./bootstrap:/opt/bootstrap", "datanode2-data:/hadoop/dfs/data"]
+    depends_on: [namenode]
+
+  datanode3:
+    image: apache/hadoop:3.5.0
+    hostname: datanode3
+    container_name: hdfs-datanode3
+    user: root
+    command: ["/bin/bash", "/opt/bootstrap/datanode.sh"]
+    environment: { HADOOP_CONF_DIR: /opt/hadoop/etc/hadoop }
+    volumes: ["./conf:/opt/hadoop/etc/hadoop", "./bootstrap:/opt/bootstrap", "datanode3-data:/hadoop/dfs/data"]
+    depends_on: [namenode]
+
+  datanode4:
+    image: apache/hadoop:3.5.0
+    hostname: datanode4
+    container_name: hdfs-datanode4
+    user: root
+    command: ["/bin/bash", "/opt/bootstrap/datanode.sh"]
+    environment: { HADOOP_CONF_DIR: /opt/hadoop/etc/hadoop }
+    volumes: ["./conf:/opt/hadoop/etc/hadoop", "./bootstrap:/opt/bootstrap", "datanode4-data:/hadoop/dfs/data"]
+    depends_on: [namenode]
+
+  datanode5:
+    image: apache/hadoop:3.5.0
+    hostname: datanode5
+    container_name: hdfs-datanode5
+    user: root
+    command: ["/bin/bash", "/opt/bootstrap/datanode.sh"]
+    environment: { HADOOP_CONF_DIR: /opt/hadoop/etc/hadoop }
+    volumes: ["./conf:/opt/hadoop/etc/hadoop", "./bootstrap:/opt/bootstrap", "datanode5-data:/hadoop/dfs/data"]
+    depends_on: [namenode]
+
+  hdfs-client:
+    image: apache/hadoop:3.5.0
+    hostname: hdfs-client
+    container_name: hdfs-client
+    user: root
+    command: ["sleep", "infinity"]
+    environment: { HADOOP_CONF_DIR: /opt/hadoop/etc/hadoop }
+    volumes: ["./conf:/opt/hadoop/etc/hadoop"]
+    depends_on: [namenode, datanode1, datanode2, datanode3, datanode4, datanode5]
+
+volumes:
+  namenode-data:
+  datanode1-data:
+  datanode2-data:
+  datanode3-data:
+  datanode4-data:
+  datanode5-data:

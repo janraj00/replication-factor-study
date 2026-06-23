@@ -1,0 +1,7 @@
+psycopg2-binary==2.9.9; python_version < "3.9"
+psycopg2-binary>=2.9.9; python_version >= "3.9"
+pandas>=2.0.0,<2.1.0; python_version < "3.9"
+pandas>=2.2.0; python_version >= "3.9"
+matplotlib>=3.7.0,<3.8.0; python_version < "3.9"
+matplotlib>=3.8.0; python_version >= "3.9"
+openpyxl>=3.1.0
