@@ -63,9 +63,9 @@ RQ3. Under which consistency, placement, workload-duration, and geographic condi
 
 The CockroachDB experiment uses a local Docker Compose cluster with nine CockroachDB nodes. A benchmark table is recreated before each run. The replication factor is varied, and workloads are generated with configurable read/write ratios. For each run, the experiment records target and actual throughput, read and write success counts, error counts, SQL-level latency metrics, KV execution latency metrics, and process memory metrics where available.
 
-The current preliminary sweep uses replication factors 3, 4, and 5, read/write ratios 100:0, 80:20, and 50:50, two repetitions, randomized run order, 90 seconds of workload duration, 30 seconds of cooldown, and a target of 250 QPS. These settings are intentionally smaller than the intended paper-grade experiment, but they are sufficient to test the pipeline and expose early behavior.
+The current safe local ladder uses replication factors 3, 5, and 7; read/write ratios 100:0, 80:20, and 50:50; three repetitions; randomized run order; 90 seconds of workload duration; 30 seconds of cooldown; and a target of 150 QPS. The full 27-run matrix completed with zero connect, read, write, and metrics errors, passed validation, and left all nine CockroachDB containers running.
 
-Paper-grade runs should extend this design to more repetitions and longer durations. The current safe local ladder uses RF=3, 5, and 7. Higher RF values should be included only in an environment that can sustain them without destabilizing the cluster; the failed local RF=9 attempt is diagnostic evidence about an environment limit and must not be mixed into performance curves. Runs should remain randomized and should include validation that all containers remain live and all error counts remain zero.
+These settings provide stronger preliminary evidence than the earlier two-repetition seed, but they remain below the paper-grade design target of at least 180 seconds per run. The 150 QPS cap also means that read-only and most 80:20 observations measure successful target attainment rather than maximum throughput. Higher RF values should be included only in an environment that can sustain them without destabilizing the cluster; the failed local RF=9 attempt is diagnostic evidence about an environment limit and is not included in performance curves.
 
 ### 4.2 File-Storage Contrast
 
@@ -83,21 +83,23 @@ The repository includes scripts for running sweeps, collecting metrics, validati
 
 ### 5.1 CockroachDB: The Primary Result
 
-The current CockroachDB preliminary sweep completed 18 out of 18 planned runs with zero connect, read, and write errors. Table 1 summarizes actual throughput grouped by replication factor and read/write ratio.
+The safe CockroachDB ladder completed 27 out of 27 planned runs with zero connect, read, write, and metrics errors. Table 1 summarizes actual throughput across three repetitions.
 
-Table 1. Preliminary CockroachDB throughput summary.
+Table 1. Preliminary CockroachDB actual QPS, mean (standard deviation).
 
-| Ratio | RF=3 mean QPS | RF=4 mean QPS | RF=5 mean QPS |
+| Ratio | RF=3 | RF=5 | RF=7 |
 |---|---:|---:|---:|
-| 100:0 | 232.15 | 242.34 | 248.99 |
-| 80:20 | 184.28 | 180.41 | 218.39 |
-| 50:50 | 172.55 | 148.94 | 162.21 |
+| 100:0 | 149.71 (0.30) | 149.71 (0.27) | 149.47 (0.67) |
+| 80:20 | 149.37 (0.57) | 149.80 (0.16) | 145.24 (6.00) |
+| 50:50 | 133.20 (6.84) | 138.50 (13.33) | 129.86 (16.14) |
 
 ![Figure 1. Preliminary CockroachDB throughput by replication factor.](figures/preliminary_cockroach_qps.png)
 
-For the read-only workload, throughput remains in a similar range and increases slightly from RF=3 to RF=5. This does not show a large read-scaling effect from additional replicas. For the mixed workloads, the behavior is non-monotonic. In the 50:50 workload, RF=4 and RF=5 do not improve on RF=3 in the preliminary mean. In the 80:20 workload, RF=5 performs better than RF=3 and RF=4, but the standard deviation is also high, suggesting sensitivity to leaseholder placement, local resource contention, and background system activity.
+The read-only workload reaches the 150 QPS target at every RF with very little variation. This is evidence that all three configurations sustain the selected load, but it cannot establish equal maximum capacity or a read-scaling benefit because the workload generator caps the observation. RF=3 and RF=5 similarly reach the target in the 80:20 workload, while RF=7 averages 145.24 QPS and exhibits greater variation.
 
-These early results should therefore not be read as evidence that one specific RF is always optimal. A more careful interpretation is that increasing RF in CockroachDB under strong reads does not provide a simple or predictable throughput gain. The result is consistent with the architectural expectation that additional replicas participate in coordination rather than acting as independent read-serving copies.
+The 50:50 workload exposes a clearer saturation regime. Mean throughput is non-monotonic and variability is substantial: RF=5 has the highest mean, but its standard deviation is nearly twice that of RF=3, and RF=7 has both the lowest mean and the largest spread. No RF provides a stable monotonic improvement. The result is consistent with the architectural expectation that additional voting replicas do not act as independent strong-read servers and may interact with consensus work, leaseholder placement, range reconfiguration, and shared-host contention.
+
+The safe ladder therefore strengthens the negative result without identifying a universally optimal RF. It supports the claim that RF alone is not a predictable strong-read scaling control in this setup. A follow-up load sweep is still needed to estimate capacity boundaries at each RF rather than comparing configurations under a single capped target.
 
 ### 5.2 HDFS: Interpreting the Contrast
 

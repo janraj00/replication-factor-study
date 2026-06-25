@@ -7,7 +7,7 @@ import pandas as pd
 
 
 def plot_cockroach(data_dir: Path, out_dir: Path) -> None:
-    df = pd.read_csv(data_dir / "cockroach_rf_sweep_bg_20260617_summary_grouped.csv")
+    df = pd.read_csv(data_dir / "cockroach_rf_ladder_safe_20260625_summary_grouped.csv")
     df = df.sort_values(["ratio", "rf"])
 
     plt.figure(figsize=(7.2, 4.2))
@@ -24,7 +24,8 @@ def plot_cockroach(data_dir: Path, out_dir: Path) -> None:
         )
     plt.xlabel("Replication factor")
     plt.ylabel("Actual throughput [QPS]")
-    plt.title("CockroachDB preliminary throughput")
+    plt.title("CockroachDB safe RF ladder (strong reads)")
+    plt.xticks(sorted(df["rf"].unique()))
     plt.grid(True, alpha=0.3)
     plt.legend()
     plt.tight_layout()

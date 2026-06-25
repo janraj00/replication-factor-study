@@ -38,7 +38,7 @@ limitations.
 - Validation: PASS
 - Curated CSV: `paper/data/preliminary/hdfs_rf_sweep_seed_20260623_*`
 
-## Current CockroachDB RF ladder
+### CockroachDB safe RF ladder
 
 - Directory: `results/cockroach_rf_ladder_safe_20260625`
 - RF: 3, 5, 7
@@ -49,22 +49,24 @@ limitations.
 - Logs:
   - `results/cockroach_rf_ladder_safe_20260625.stdout.log`
   - `results/cockroach_rf_ladder_safe_20260625.stderr.log`
+- 27/27 runs completed
+- Zero connect, read, write, and metrics errors
+- Validation: PASS
+- Cluster after completion: 9/9 containers running
+- Curated CSV: `paper/data/preliminary/cockroach_rf_ladder_safe_20260625_*`
 
-At the last manual check, the first run (RF=7, ratio 50:50) completed with zero
-errors and 129.75 actual QPS. The sweep was continuing with the next RF=7 run.
-Do not stop it merely to inspect progress.
+Mean actual QPS (standard deviation):
 
-After completion:
+| Ratio | RF=3 | RF=5 | RF=7 |
+|---|---:|---:|---:|
+| 100:0 | 149.71 (0.30) | 149.71 (0.27) | 149.47 (0.67) |
+| 80:20 | 149.37 (0.57) | 149.80 (0.16) | 145.24 (6.00) |
+| 50:50 | 133.20 (6.84) | 138.50 (13.33) | 129.86 (16.14) |
 
-1. Validate the full 27-run matrix for RF 3,5,7; ratios 100:0,80:20,50:50; and
-   three repetitions.
-2. Run the CockroachDB analyzer.
-3. Inspect error counts, metrics error rows, actual-vs-target QPS, variance, and
-   cluster stability.
-4. Curate the run and grouped summary CSV only if the dataset is internally
-   complete and suitable as preliminary paper evidence.
-5. Regenerate figures and update `paper/short_paper_draft.md` without
-   overstating the local result.
+The read-only series and most 80:20 runs reached the configured 150 QPS cap,
+so they demonstrate stability but not maximum capacity. The 50:50 series shows
+saturation, substantial run-to-run variation, and no monotonic RF benefit.
+Treat this as strong preliminary local evidence, not paper-grade proof.
 
 ## Diagnostic RF=9 attempt
 
@@ -75,8 +77,10 @@ limit; do not mix them into throughput curves or paper-grade comparisons.
 
 ## Known follow-up work
 
-- Complete and evaluate the safe RF=3,5,7 CockroachDB ladder.
-- Add CockroachDB latency figures if metric coverage is consistent.
+- Repeat key CockroachDB cases with at least 180-second runs and a load sweep
+  that exposes the saturation boundary instead of capping results at 150 QPS.
+- Add CockroachDB latency figures after checking metric resolution and
+  aggregation semantics.
 - Run a larger HDFS paper-grade sweep with larger data, at least three
   repetitions, and documented cache handling.
 - Decide whether follower reads belong in the main comparison or future work.
