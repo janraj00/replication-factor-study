@@ -2,134 +2,150 @@
 
 ## Working title
 
-When More Replicas Do Not Help: Conditions for Effective Replication-Factor Tuning in Distributed SQL and File Storage
+When More Replicas Do Not Help: Testing File-Storage Replication Intuition in Distributed SQL
 
 ## Central question
 
-Under which architectural and workload conditions does changing the replication
-factor provide a performance benefit large enough to justify its storage,
-network, coordination, and reconfiguration costs?
+Does replication-factor adaptation, a familiar technique in distributed file
+storage, provide a useful performance control in a consensus-based distributed
+SQL database?
 
-The paper does not propose a new replication algorithm. It evaluates whether
-replication-factor adaptation is a useful control action in two systems where
-the same parameter has different operational meaning.
+CockroachDB is the primary object of study. HDFS is used as an architectural
+and experimental contrast that explains where the intuition behind changing RF
+comes from and why it may not transfer to distributed SQL.
+
+The paper does not propose a new adaptation algorithm. It first tests whether
+RF is a sufficiently effective and predictable database control action to
+justify such an algorithm.
 
 ## Proposed structure
 
-### 1. Introduction and related motivation
+### 1. Introduction and motivation from file storage
 
-- Replication-factor and replica-placement changes are established control
-  mechanisms in distributed file systems.
-- GFS and HDFS expose replicated blocks/chunks as a durability and locality
-  mechanism.
-- Scarlett adapts replication to skewed content popularity.
-- Copysets shows that replica placement, not only replica count, changes
-  durability and recovery behavior.
-- Motivate the gap: the file-system intuition that another copy is another
-  possible read source does not transfer directly to consensus-based SQL.
-- State the paper's narrow objective: determine whether and when changing RF
-  is worthwhile, rather than design another adaptive policy.
+- Replication-factor and replica-placement changes are established techniques
+  in distributed file systems.
+- GFS and HDFS use replicated blocks for durability, locality, and aggregate
+  read service.
+- Scarlett adapts replication to content popularity; Copysets shows that
+  replica placement changes durability and recovery behavior.
+- This success creates a tempting systems intuition: a read-heavy workload
+  should benefit from more replicas.
+- State the gap: database replicas participate in consensus and transactions,
+  so this intuition may not apply.
+- State the paper's objective: evaluate RF as a database tuning action, using
+  file storage as the contrast rather than as an equal research target.
 
-### 2. Architectural contrast
+### 2. Why file-system intuition may fail in distributed SQL
 
-#### 2.1 HDFS: metadata coordination and data-serving workers
+#### 2.1 File storage as the source of the intuition
 
-- The NameNode manages namespace, block locations, and placement decisions.
+- The HDFS NameNode manages metadata and block placement.
 - DataNodes store blocks and serve client reads directly.
-- More replicas may provide locality, parallel read sources, load spreading,
-  and resilience across failure domains.
-- Costs include storage capacity, replication traffic, write-pipeline length,
-  re-replication, and rebalancing.
+- Another replica can become another local or parallel read source.
+- The relevant trade-off is read locality and service capacity versus storage,
+  replication traffic, and write cost.
 
-#### 2.2 CockroachDB: replicated state machines
+#### 2.2 The database execution path
 
-- Data is divided into ranges; each range is a Raft replication group.
-- A Raft leader orders replicated log entries, while a leaseholder coordinates
-  most strong reads and writes for a range.
-- More voting replicas change fault tolerance, quorum topology, replication
-  fan-out, and placement options; they do not automatically create independent
-  strong-read paths.
-- Follower reads are a separate consistency/performance mode and should not be
-  mixed with strong-read results.
+- CockroachDB divides data into ranges represented by Raft groups.
+- A Raft leader orders replicated log entries.
+- A leaseholder coordinates most strong reads and writes for a range.
+- Another voting replica increases fault tolerance and placement flexibility,
+  but does not automatically create another strong-read path.
+- Follower reads are a separate bounded-staleness mode.
 
-#### 2.3 Mechanism-level comparison
+#### 2.3 Consequence for RF tuning
 
-| Question | HDFS | CockroachDB |
+| Tuning question | File storage intuition | Distributed SQL implication |
 |---|---|---|
-| What is replicated? | File blocks | Transactional key ranges and Raft log/state |
-| Who serves normal reads? | A selected DataNode replica | Usually the range leaseholder for strong reads |
-| What can another replica add? | Locality, read source, failure-domain coverage | Fault tolerance, placement flexibility, possible follower-read locality |
-| Main incremental cost | Storage and data-transfer/write-pipeline cost | Storage, replication fan-out, quorum/coordination and rebalancing cost |
-| When is performance benefit plausible? | Concurrent or geographically local reads | Local follower reads, better leaseholder placement, or resilience-driven placement |
+| Can another replica serve reads? | Normally yes, subject to placement | Not for arbitrary strong reads |
+| What does RF primarily change? | Number and location of block copies | Consensus group, fault tolerance, placement, and replication fan-out |
+| Where can performance improve? | Locality and parallel service | Leaseholder placement or eligible follower reads |
+| Main risk | Storage/write/re-replication cost | Coordination, quorum, rebalancing, and write cost |
 
 ### 3. Scope and research questions
 
-RQ1. How does HDFS RF affect read throughput as reader parallelism increases?
-
-RQ2. How does CockroachDB RF affect throughput and latency under strong
+RQ1. Does increasing RF improve CockroachDB throughput or latency under strong
 read-only and mixed read/write workloads?
 
-RQ3. Which observed effects come from RF itself, and which are dominated by
-reader count, leaseholder placement, saturation, caching, or shared-host
-contention?
+RQ2. Do the CockroachDB results exhibit the read-scaling behavior that
+motivates RF adaptation in file storage?
 
-RQ4. Under which workload, consistency, and geographic conditions is an RF
-change likely to repay its cost?
+RQ3. Under which consistency, placement, workload-duration, and geographic
+conditions could RF adaptation still be worthwhile in distributed SQL?
 
 ### 4. Experimental methodology
 
-- CockroachDB: RF ladder, workload read/write ratios, actual QPS, latency,
-  errors, randomized order, repetitions, and validation.
-- HDFS: RF 1..5, parallel readers, read and write throughput, randomized order,
-  repetitions, and validation.
+#### 4.1 Primary database experiment
+
+- CockroachDB RF ladder.
+- Strong read-only and mixed read/write workloads.
+- Actual QPS, SQL/KV latency, errors, placement-sensitive behavior.
+- Randomized order, repetitions, validation, and saturation reporting.
+
+#### 4.2 File-storage contrast
+
+- HDFS RF 1..5 and parallel reader counts.
+- Read and write throughput.
+- Used to expose the different read-serving mechanism, not to provide a
+  comprehensive comparison of the two products.
+
+#### 4.3 Evidence quality
+
 - Separate pipeline checks, preliminary evidence, and paper-grade evidence.
-- Report low achieved QPS as saturation rather than silently treating target
-  throughput as controlled.
+- Preserve the failed RF=9 local run as environment-limit diagnostics.
+- Do not infer geographic locality from a single shared Docker host.
 
 ### 5. Results
 
-- CockroachDB strong-read and mixed-workload throughput/latency.
-- HDFS read throughput by RF and reader count, plus write cost by RF.
-- Report uncertainty and non-monotonic behavior.
-- Do not claim that RF improves file-system reads unless larger multi-host
-  evidence isolates locality or load-spreading effects.
+#### 5.1 CockroachDB
 
-### 6. When changing RF pays off
+- Throughput and latency by RF and read/write ratio.
+- Emphasize the absence or presence of a repeatable monotonic benefit.
+- Report achieved QPS, variance, and errors.
 
-An RF increase is most defensible when at least one of these mechanisms is
-active:
+#### 5.2 HDFS contrast
 
-1. A higher failure tolerance or failure-domain requirement is itself worth
-   the cost.
-2. Additional replicas can actually serve reads and are placed near readers or
-   computation.
-3. A hot object or range persists long enough for re-replication and
-   rebalancing costs to be amortized.
-4. Geographic placement avoids remote reads without placing every strong write
-   on a slower WAN quorum path.
-5. The system is bottlenecked at replica-serving nodes rather than at a shared
-   disk, client, leaseholder, or host scheduler.
+- Show that reader parallelism is the dominant effect in the current local
+  evidence.
+- Explain that HDFS nevertheless has a direct architectural path by which an
+  additional block copy may serve demand.
+- Avoid turning the section into a product-performance contest.
 
-It is unlikely to pay for short-lived bursts, write-heavy workloads, strong
-reads pinned to one leaseholder, or local single-host experiments where all
-logical replicas share the same physical resources.
+### 6. Implications for RF tuning in distributed SQL
+
+RF adaptation in the database is plausible only when a concrete database
+mechanism is active:
+
+1. stronger failure-domain coverage is itself required;
+2. leaseholder placement is improved for the dominant access region;
+3. follower reads are acceptable and additional replicas serve local reads;
+4. the workload persists long enough to amortize range replication and
+   rebalancing; or
+5. geographic placement reduces remote reads without making the strong-write
+   quorum prohibitively slow.
+
+RF is unlikely to be a useful performance action for short bursts, write-heavy
+workloads, strong reads pinned to one leaseholder, or deployments where all
+replicas share the same physical bottleneck.
 
 ### 7. Threats to validity
 
 - Shared Docker host and cache effects.
-- Simplified synthetic workloads.
+- Simplified synthetic CockroachDB workload.
 - Placement and leaseholder changes after RF reconfiguration.
-- Preliminary datasets have too few repetitions for strong inference.
-- HDFS locality cannot be demonstrated convincingly without multiple physical
-  hosts/racks or controlled network topology.
+- Too few preliminary repetitions for strong inference.
+- HDFS is an explanatory contrast, not proof that all file systems benefit
+  monotonically from higher RF.
 
 ### 8. Conclusion
 
-- RF is not a universal performance knob.
-- Replica count is useful only through a concrete mechanism: failure-domain
-  coverage, locality, parallel service, or consistency-aware placement.
-- The architectural mechanism should be identified before building an
-  adaptive RF controller.
+- File storage provides the motivation, but distributed SQL is the research
+  target.
+- RF is not automatically a read-scaling parameter in a consensus database.
+- A future adaptive database policy is justified only after a repeatable
+  benefit is connected to leaseholder, follower-read, geographic, or
+  resilience mechanisms.
 
 ## Initial references
 
