@@ -26,6 +26,9 @@ paper/                # paper outline / notes
 results/              # generated outputs, ignored by git
 ```
 
+For the latest completed datasets, active experiments, and known limitations,
+see `docs/project_status.md`.
+
 ## Python setup
 
 ```bash
