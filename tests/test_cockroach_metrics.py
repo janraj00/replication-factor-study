@@ -64,11 +64,11 @@ class CockroachMetricsTests(unittest.TestCase):
     def test_collector_keeps_raw_buckets_instead_of_cumulative_quantiles(self):
         prometheus = {
             'sql_service_latency_bucket': [
-                {'labels': {'node_id': '2', 'le': '10000000'}, 'value': 12.0},
-                {'labels': {'node_id': '2', 'le': '+Inf'}, 'value': 20.0},
+                {'labels': {'node_id': '5', 'le': '10000000'}, 'value': 12.0},
+                {'labels': {'node_id': '5', 'le': '+Inf'}, 'value': 20.0},
             ],
             'sql_select_count': [
-                {'labels': {'node_id': '2'}, 'value': 123.0},
+                {'labels': {'node_id': '5'}, 'value': 123.0},
             ],
         }
         with patch(
@@ -83,7 +83,9 @@ class CockroachMetricsTests(unittest.TestCase):
         bucket_rows = [row for row in rows if row['sample_type'] == 'histogram_bucket']
         self.assertEqual([row['le'] for row in bucket_rows], ['10000000', '+Inf'])
         self.assertEqual(bucket_rows[0]['name'], 'sql.service.latency')
+        self.assertEqual(bucket_rows[0]['node_id'], 5)
         counter = next(row for row in rows if row['sample_type'] == 'counter')
+        self.assertEqual(counter['node_id'], 5)
         self.assertEqual(counter['value'], 123.0)
 
     def test_legacy_quantile_snapshots_are_not_reported_as_per_run_latency(self):

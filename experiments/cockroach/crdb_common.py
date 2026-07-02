@@ -113,11 +113,24 @@ def _parse_prometheus_metrics(text: str) -> Dict[str, List[dict]]:
 
 
 def _first_metric_value(metrics: Dict[str, List[dict]], prometheus_name: str, node_id: int) -> float:
-    for sample in metrics.get(prometheus_name, []):
+    samples = metrics.get(prometheus_name, [])
+    for sample in samples:
         labels = sample['labels']
         if labels.get('node_id') in ('', str(node_id)):
             return sample['value']
+    if samples:
+        return samples[0]['value']
     raise KeyError(prometheus_name)
+
+
+def _sample_node_id(sample: dict, endpoint_id: int):
+    value = sample.get('labels', {}).get('node_id')
+    if value in ('', None):
+        return endpoint_id
+    try:
+        return int(value)
+    except ValueError:
+        return value
 
 
 def _histogram_quantile(metrics: Dict[str, List[dict]], prometheus_name: str, node_id: int, quantile: float) -> float:
@@ -164,16 +177,23 @@ def fetch_node_metric_samples(metric_names: List[str], node_id: int = 1) -> List
         metric_name = LEGACY_HISTOGRAM_ALIASES.get(requested_name, requested_name)
         if metric_name in DIRECT_METRICS:
             prometheus_name, sample_type = DIRECT_METRICS[metric_name]
-            try:
-                value = _first_metric_value(metrics, prometheus_name, node_id)
-            except KeyError:
+            samples = metrics.get(prometheus_name, [])
+            if not samples:
                 continue
+            sample = next(
+                (
+                    item
+                    for item in samples
+                    if item['labels'].get('node_id') in ('', str(node_id))
+                ),
+                samples[0],
+            )
             rows.append({
-                'node_id': node_id,
+                'node_id': _sample_node_id(sample, node_id),
                 'name': metric_name,
                 'sample_type': sample_type,
                 'le': '',
-                'value': value,
+                'value': sample['value'],
             })
             continue
 
@@ -182,13 +202,11 @@ def fetch_node_metric_samples(metric_names: List[str], node_id: int = 1) -> List
             bucket_name = f'{HISTOGRAM_METRICS[metric_name]}_bucket'
             for sample in metrics.get(bucket_name, []):
                 labels = sample['labels']
-                if labels.get('node_id') not in ('', str(node_id)):
-                    continue
                 le = labels.get('le')
                 if le is None:
                     continue
                 rows.append({
-                    'node_id': node_id,
+                    'node_id': _sample_node_id(sample, node_id),
                     'name': metric_name,
                     'sample_type': 'histogram_bucket',
                     'le': le,

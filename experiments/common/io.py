@@ -2,6 +2,7 @@ import csv
 import json
 import os
 import platform
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -39,6 +40,21 @@ def _run_text(cmd, cwd: Path) -> str:
         return f'unavailable: {type(e).__name__}: {e}'
 
 
+def _git_executable() -> str:
+    discovered = shutil.which('git')
+    if discovered:
+        return discovered
+    if os.name == 'nt':
+        candidates = [
+            Path(os.environ.get('ProgramFiles', r'C:\Program Files')) / 'Git/cmd/git.exe',
+            Path(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)')) / 'Git/cmd/git.exe',
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return str(candidate)
+    return 'git'
+
+
 def experiment_metadata(kind: str, args, repo_root: Path) -> dict:
     env_keys = [
         'CRDB_HOST',
@@ -50,6 +66,7 @@ def experiment_metadata(kind: str, args, repo_root: Path) -> dict:
         'DOCKER_HOST',
         'COMPOSE_PROJECT_NAME',
     ]
+    git = _git_executable()
     return {
         'kind': kind,
         'timestamp_utc': datetime.now(timezone.utc).isoformat(),
@@ -70,8 +87,8 @@ def experiment_metadata(kind: str, args, repo_root: Path) -> dict:
         'environment': {k: os.environ.get(k, '') for k in env_keys if k in os.environ},
         'parameters': vars(args),
         'git': {
-            'commit': _run_text(['git', 'rev-parse', 'HEAD'], repo_root),
-            'status_short': _run_text(['git', 'status', '--short'], repo_root),
+            'commit': _run_text([git, 'rev-parse', 'HEAD'], repo_root),
+            'status_short': _run_text([git, 'status', '--short'], repo_root),
         },
     }
 
