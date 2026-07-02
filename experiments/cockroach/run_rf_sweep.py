@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import csv
 import json
 import random
 import subprocess
@@ -33,12 +34,24 @@ def main():
     ap.add_argument('--metric-interval', type=float, default=15.0)
     ap.add_argument('--results-dir', default='results/cockroach_rf_sweep')
     ap.add_argument('--shuffle', action='store_true', help='Randomize RF/ratio run order within each repetition.')
+    ap.add_argument('--resume', action='store_true', help='Skip run IDs already present in runs.csv.')
     args = ap.parse_args()
 
     repo_root = Path(__file__).resolve().parents[2]
     results_dir = ensure_dir(args.results_dir)
-    write_experiment_metadata(results_dir, 'cockroach', args, repo_root)
+    metadata_path = results_dir / 'metadata.json'
+    if not (args.resume and metadata_path.exists()):
+        write_experiment_metadata(results_dir, 'cockroach', args, repo_root)
     runs_csv = results_dir / 'runs.csv'
+    completed_run_ids = set()
+    if args.resume and runs_csv.exists():
+        with runs_csv.open(newline='', encoding='utf-8') as handle:
+            completed_run_ids = {
+                row['run_id']
+                for row in csv.DictReader(handle)
+                if row.get('run_id')
+            }
+        print(f'Resuming: {len(completed_run_ids)} completed run IDs found', flush=True)
     rfs = parse_list(args.rfs, int)
     ratios = parse_list(args.ratios, str)
 
@@ -48,6 +61,9 @@ def main():
             random.shuffle(planned_runs)
         for order_idx, (ratio, rf) in enumerate(planned_runs, start=1):
             run_id = f'rep{rep}_ratio{ratio.replace(":", "-")}_rf{rf}_{args.read_mode}'
+            if run_id in completed_run_ids:
+                print(f'Skip completed run: {run_id}', flush=True)
+                continue
             run_dir = ensure_dir(results_dir / run_id)
             run_meta = {
                 'run_id': run_id,
