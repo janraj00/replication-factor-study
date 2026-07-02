@@ -191,7 +191,8 @@ python scripts/validate_results.py \
   --results-dir results/cockroach_rf_sweep_paper \
   --expected-rfs 3,4,5,6,7,8,9 \
   --expected-ratios 0:100,10:90,20:80,30:70,40:60,50:50,60:40,70:30,80:20,90:10,100:0 \
-  --expected-repetitions 3
+  --expected-repetitions 3 \
+  --expected-metric-nodes 9
 
 python scripts/validate_results.py \
   --kind hdfs \

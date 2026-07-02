@@ -72,14 +72,48 @@ def main():
 
             metrics_out = run_dir / 'metrics.csv'
             load_out = run_dir / 'load.json'
-            metrics_cmd = [sys.executable, str(repo_root / 'experiments/cockroach/collect_metrics.py'), '--duration', str(args.duration), '--interval', str(args.metric_interval), '--out', str(metrics_out), '--run-id', run_id, '--rf', str(rf), '--ratio', ratio]
+            metrics_stop = run_dir / 'load_complete.signal'
+            metrics_ready = run_dir / 'metrics_ready.signal'
+            for signal_file in (metrics_stop, metrics_ready):
+                if signal_file.exists():
+                    signal_file.unlink()
+            metrics_cmd = [
+                sys.executable,
+                str(repo_root / 'experiments/cockroach/collect_metrics.py'),
+                '--duration',
+                str(args.duration + 120),
+                '--interval',
+                str(args.metric_interval),
+                '--out',
+                str(metrics_out),
+                '--run-id',
+                run_id,
+                '--rf',
+                str(rf),
+                '--ratio',
+                ratio,
+                '--nodes',
+                'all',
+                '--stop-file',
+                str(metrics_stop),
+                '--ready-file',
+                str(metrics_ready),
+            ]
             load_cmd = [sys.executable, str(repo_root / 'experiments/cockroach/load_workload.py'), '--duration', str(args.duration), '--qps-total', str(args.qps_total), '--workers-per-node', str(args.workers_per_node), '--ratio', ratio, '--read-mode', args.read_mode, '--json-out', str(load_out)]
 
             metrics_proc = subprocess.Popen(metrics_cmd)
             try:
+                ready_deadline = time.time() + 30.0
+                while not metrics_ready.exists():
+                    if metrics_proc.poll() is not None:
+                        raise RuntimeError('Metrics collector exited before its baseline snapshot')
+                    if time.time() >= ready_deadline:
+                        raise TimeoutError('Metrics collector did not produce a baseline snapshot within 30s')
+                    time.sleep(0.1)
                 run(load_cmd)
             finally:
-                metrics_proc.wait(timeout=args.duration + 90)
+                metrics_stop.touch()
+                metrics_proc.wait(timeout=90)
 
             print(f'Cooldown after load: {args.cooldown}s', flush=True)
             time.sleep(args.cooldown)
@@ -103,6 +137,14 @@ def main():
                 'writes_ok': load_summary.get('writes_ok'),
                 'writes_err': load_summary.get('writes_err'),
                 'read_mode': args.read_mode,
+                'read_latency_ms_mean': load_summary.get('read_latency_ms_mean'),
+                'read_latency_ms_p50': load_summary.get('read_latency_ms_p50'),
+                'read_latency_ms_p90': load_summary.get('read_latency_ms_p90'),
+                'read_latency_ms_p99': load_summary.get('read_latency_ms_p99'),
+                'write_latency_ms_mean': load_summary.get('write_latency_ms_mean'),
+                'write_latency_ms_p50': load_summary.get('write_latency_ms_p50'),
+                'write_latency_ms_p90': load_summary.get('write_latency_ms_p90'),
+                'write_latency_ms_p99': load_summary.get('write_latency_ms_p99'),
                 'metrics_file': str(metrics_out),
                 'load_file': str(load_out),
             })

@@ -44,6 +44,7 @@ def validate_cockroach(args):
     results_dir = Path(args.results_dir)
     failures = []
     warnings = []
+    legacy_metrics_files = 0
     runs_path = results_dir / 'runs.csv'
     if not runs_path.exists():
         return [f'missing {runs_path}'], warnings, 0
@@ -82,6 +83,20 @@ def validate_cockroach(args):
                 metric_errors = [m for m in metrics_rows if (m.get('error') or '').strip()]
                 if metric_errors:
                     failures.append(f'{row["run_id"]}: metrics file contains {len(metric_errors)} error rows')
+                if 'sample_type' not in metrics_rows[0] or 'le' not in metrics_rows[0]:
+                    legacy_metrics_files += 1
+                elif args.expected_metric_nodes:
+                    observed_nodes = {
+                        int(m['node_id'])
+                        for m in metrics_rows
+                        if (m.get('node_id') or '').strip().isdigit()
+                        and (m.get('metric') or '') != '__error__'
+                    }
+                    if len(observed_nodes) != args.expected_metric_nodes:
+                        failures.append(
+                            f'{row["run_id"]}: expected metrics from {args.expected_metric_nodes} nodes, '
+                            f'observed {len(observed_nodes)}'
+                        )
 
     expected_rfs = parse_list(args.expected_rfs, int)
     expected_ratios = parse_list(args.expected_ratios, str)
@@ -96,6 +111,12 @@ def validate_cockroach(args):
                         missing.append(f'rep={rep},rf={rf},ratio={ratio}')
         if missing:
             failures.append('missing expected runs: ' + '; '.join(missing))
+
+    if legacy_metrics_files:
+        warnings.append(
+            f'{legacy_metrics_files} metrics files use legacy cumulative quantiles; '
+            'they cannot support per-run native latency claims'
+        )
 
     return failures, warnings, len(rows)
 
@@ -165,6 +186,7 @@ def main():
     ap.add_argument('--expected-ratios', default='')
     ap.add_argument('--expected-readers', default='')
     ap.add_argument('--expected-repetitions', type=int, default=0)
+    ap.add_argument('--expected-metric-nodes', type=int, default=0)
     args = ap.parse_args()
 
     if args.kind == 'cockroach':

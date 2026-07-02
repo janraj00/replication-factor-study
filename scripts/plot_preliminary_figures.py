@@ -24,12 +24,12 @@ def plot_cockroach(data_dir: Path, out_dir: Path) -> None:
         )
     plt.xlabel("Replication factor")
     plt.ylabel("Actual throughput [QPS]")
-    plt.title("CockroachDB safe RF ladder (strong reads)")
+    plt.title("CockroachDB safe RF ladder: target attainment")
     plt.xticks(sorted(df["rf"].unique()))
     plt.grid(True, alpha=0.3)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(out_dir / "preliminary_cockroach_qps.png", dpi=180)
+    plt.savefig(out_dir / "preliminary_cockroach_safe_rf_ladder.png", dpi=180)
     plt.close()
 
 

@@ -26,6 +26,9 @@ Before changing experiments or paper claims, read:
 - For CockroachDB, require the expected RF/ratio/repetition matrix, zero
   connect/read/write errors, readable load files, and metrics without error
   rows.
+- For evidence-grade CockroachDB latency, require metrics from every workload
+  node and compute p90/p99 from end-minus-start histogram buckets for each run.
+  Do not treat cumulative quantile snapshots as per-run latency.
 - For HDFS, require the expected RF/reader/repetition matrix and positive read
   and write measurements.
 - Low achieved QPS is not automatically a failed run. Report it as saturation
@@ -44,7 +47,7 @@ Before changing experiments or paper claims, read:
 CockroachDB:
 
 ```powershell
-py scripts\validate_results.py --kind cockroach --results-dir <dir> --expected-rfs <rfs> --expected-ratios <ratios> --expected-repetitions <n>
+py scripts\validate_results.py --kind cockroach --results-dir <dir> --expected-rfs <rfs> --expected-ratios <ratios> --expected-repetitions <n> --expected-metric-nodes <n>
 py experiments\cockroach\analyze_results.py --results-dir <dir>
 ```
 

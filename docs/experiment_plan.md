@@ -27,11 +27,10 @@ Recommended local cluster:
 Primary CockroachDB metrics:
 
 - `qps_actual`
+- Client-observed read/write latency p50, p90, and p99
 - `reads_ok`, `reads_err`, `writes_ok`, `writes_err`, `connect_err`
-- `sql.service.latency-p90`
-- `sql.service.latency-p99`
-- `exec.latency-p90`
-- `exec.latency-p99`
+- Cluster-wide `sql.service.latency` p90/p99 derived from per-run histogram-bucket deltas
+- Cluster-wide `exec.latency` p90/p99 derived from per-run histogram-bucket deltas
 - `sql.select.count`
 - `sql.insert.count`
 - `sql.update.count`
@@ -43,6 +42,10 @@ Quality checks:
 - All expected RF/ratio/repetition combinations exist.
 - `reads_err`, `writes_err`, and `connect_err` are zero.
 - Metrics CSV files exist, are readable, and contain no `__error__` rows.
+- Native metrics cover every workload-facing CockroachDB node.
+- Histogram quantiles are computed from end-minus-start bucket counts for the
+  workload interval; cumulative quantile snapshots must not be treated as
+  per-run latency.
 - Actual QPS is reported for every run; if actual QPS is far below target, interpret throughput as saturation behavior rather than target-controlled behavior.
 - Docker containers remain live after each batch.
 - Metadata includes command line, platform, Python version, parameters, environment, and git state when available.

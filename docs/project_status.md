@@ -50,7 +50,7 @@ limitations.
   - `results/cockroach_rf_ladder_safe_20260625.stdout.log`
   - `results/cockroach_rf_ladder_safe_20260625.stderr.log`
 - 27/27 runs completed
-- Zero connect, read, write, and metrics errors
+- Zero connect, read, write, and metrics-collection errors
 - Validation: PASS
 - Cluster after completion: 9/9 containers running
 - Curated CSV: `paper/data/preliminary/cockroach_rf_ladder_safe_20260625_*`
@@ -66,7 +66,14 @@ Mean actual QPS (standard deviation):
 The read-only series and most 80:20 runs reached the configured 150 QPS cap,
 so they demonstrate stability but not maximum capacity. The 50:50 series shows
 saturation, substantial run-to-run variation, and no monotonic RF benefit.
-Treat this as strong preliminary local evidence, not paper-grade proof.
+
+The ladder used the legacy metrics collector, which stored cumulative p90/p99
+snapshots from node 1. Those values cannot be interpreted as cluster-wide
+per-run latency and are excluded from curated metric summaries and paper
+claims. The collector now records raw histogram buckets and counters from all
+nodes, while the workload records client-observed latency. A repeat run is
+needed for valid latency figures. Treat the current ladder as strong
+preliminary target-attainment evidence, not paper-grade proof.
 
 ## Diagnostic RF=9 attempt
 

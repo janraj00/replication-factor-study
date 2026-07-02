@@ -37,6 +37,26 @@ DB_NAME = os.environ.get('CRDB_DB', 'defaultdb')
 SSL_MODE = os.environ.get('CRDB_SSLMODE', 'disable')
 TABLE = os.environ.get('CRDB_TABLE', 'public.users')
 
+DIRECT_METRICS = {
+    'sql.select.count': ('sql_select_count', 'counter'),
+    'sql.insert.count': ('sql_insert_count', 'counter'),
+    'sql.update.count': ('sql_update_count', 'counter'),
+    'sql.delete.count': ('sql_delete_count', 'counter'),
+    'sys.rss': ('sys_rss', 'gauge'),
+}
+
+HISTOGRAM_METRICS = {
+    'sql.service.latency': 'sql_service_latency',
+    'exec.latency': 'exec_latency',
+}
+
+LEGACY_HISTOGRAM_ALIASES = {
+    'sql.service.latency-p90': 'sql.service.latency',
+    'sql.service.latency-p99': 'sql.service.latency',
+    'exec.latency-p90': 'exec.latency',
+    'exec.latency-p99': 'exec.latency',
+}
+
 
 def dsn(node_id: int = 1, app: str = 'rf_study') -> str:
     return (
@@ -125,18 +145,62 @@ def _histogram_quantile(metrics: Dict[str, List[dict]], prometheus_name: str, no
     return buckets[-1][0]
 
 
-def fetch_node_metrics(metric_names: List[str], node_id: int = 1) -> List[dict]:
+def _fetch_prometheus_metrics(node_id: int) -> Dict[str, List[dict]]:
     url = f'http://{DB_HOST}:{HTTP_PORTS[node_id]}/_status/vars'
     text = urlopen(url, timeout=10).read().decode('utf-8')
-    metrics = _parse_prometheus_metrics(text)
+    return _parse_prometheus_metrics(text)
+
+
+def fetch_node_metric_samples(metric_names: List[str], node_id: int = 1) -> List[dict]:
+    """Return raw counter/gauge values and cumulative histogram buckets.
+
+    Histogram buckets must be differenced between the beginning and end of a
+    benchmark run before quantiles are calculated.
+    """
+    metrics = _fetch_prometheus_metrics(node_id)
     rows = []
-    direct_names = {
-        'sql.select.count': 'sql_select_count',
-        'sql.insert.count': 'sql_insert_count',
-        'sql.update.count': 'sql_update_count',
-        'sql.delete.count': 'sql_delete_count',
-        'sys.rss': 'sys_rss',
-    }
+    seen_histograms = set()
+    for requested_name in metric_names:
+        metric_name = LEGACY_HISTOGRAM_ALIASES.get(requested_name, requested_name)
+        if metric_name in DIRECT_METRICS:
+            prometheus_name, sample_type = DIRECT_METRICS[metric_name]
+            try:
+                value = _first_metric_value(metrics, prometheus_name, node_id)
+            except KeyError:
+                continue
+            rows.append({
+                'node_id': node_id,
+                'name': metric_name,
+                'sample_type': sample_type,
+                'le': '',
+                'value': value,
+            })
+            continue
+
+        if metric_name in HISTOGRAM_METRICS and metric_name not in seen_histograms:
+            seen_histograms.add(metric_name)
+            bucket_name = f'{HISTOGRAM_METRICS[metric_name]}_bucket'
+            for sample in metrics.get(bucket_name, []):
+                labels = sample['labels']
+                if labels.get('node_id') not in ('', str(node_id)):
+                    continue
+                le = labels.get('le')
+                if le is None:
+                    continue
+                rows.append({
+                    'node_id': node_id,
+                    'name': metric_name,
+                    'sample_type': 'histogram_bucket',
+                    'le': le,
+                    'value': sample['value'],
+                })
+    return rows
+
+
+def fetch_node_metrics(metric_names: List[str], node_id: int = 1) -> List[dict]:
+    """Legacy helper returning instantaneous values or cumulative quantiles."""
+    metrics = _fetch_prometheus_metrics(node_id)
+    rows = []
     histogram_names = {
         'sql.service.latency-p90': ('sql_service_latency', 0.90),
         'sql.service.latency-p99': ('sql_service_latency', 0.99),
@@ -145,8 +209,8 @@ def fetch_node_metrics(metric_names: List[str], node_id: int = 1) -> List[dict]:
     }
     for metric_name in metric_names:
         try:
-            if metric_name in direct_names:
-                value = _first_metric_value(metrics, direct_names[metric_name], node_id)
+            if metric_name in DIRECT_METRICS:
+                value = _first_metric_value(metrics, DIRECT_METRICS[metric_name][0], node_id)
             elif metric_name in histogram_names:
                 prometheus_name, quantile = histogram_names[metric_name]
                 value = _histogram_quantile(metrics, prometheus_name, node_id, quantile)

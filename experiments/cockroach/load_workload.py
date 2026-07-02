@@ -37,6 +37,33 @@ def parse_ratio(s: str):
     return float(s), 0.0
 
 
+def percentile(values, quantile):
+    if not values:
+        return None
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * quantile
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    fraction = position - lower
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * fraction
+
+
+def latency_summary(values, prefix):
+    if not values:
+        return {
+            f'{prefix}_latency_ms_mean': None,
+            f'{prefix}_latency_ms_p50': None,
+            f'{prefix}_latency_ms_p90': None,
+            f'{prefix}_latency_ms_p99': None,
+        }
+    return {
+        f'{prefix}_latency_ms_mean': sum(values) / len(values),
+        f'{prefix}_latency_ms_p50': percentile(values, 0.50),
+        f'{prefix}_latency_ms_p90': percentile(values, 0.90),
+        f'{prefix}_latency_ms_p99': percentile(values, 0.99),
+    }
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--qps-total', type=float, default=1200)
@@ -62,6 +89,7 @@ def main():
     lock = threading.Lock()
     stop_evt = threading.Event()
     counts = {'reads_ok': 0, 'reads_err': 0, 'writes_ok': 0, 'writes_err': 0, 'connect_err': 0, 'printed_errors': 0}
+    latencies = {'read_ms': [], 'write_ms': []}
 
     def worker(node: int, worker_id: int):
         deadline = time.time() + 30
@@ -84,6 +112,7 @@ def main():
             while not stop_evt.is_set():
                 idv = random.randint(args.id_min, args.id_max)
                 is_read = random.random() < read_share
+                op_started = time.perf_counter()
                 try:
                     if is_read:
                         conn = follower if args.read_mode == 'follower' else strong
@@ -92,6 +121,7 @@ def main():
                             cur.fetchone()
                         with lock:
                             counts['reads_ok'] += 1
+                            latencies['read_ms'].append((time.perf_counter() - op_started) * 1000.0)
                     else:
                         with strong.cursor() as cur:
                             cur.execute(
@@ -100,6 +130,7 @@ def main():
                             )
                         with lock:
                             counts['writes_ok'] += 1
+                            latencies['write_ms'].append((time.perf_counter() - op_started) * 1000.0)
                 except Exception as e:
                     with lock:
                         counts['reads_err' if is_read else 'writes_err'] += 1
@@ -134,6 +165,8 @@ def main():
     elapsed = max(time.time() - t0, 0.001)
     with lock:
         summary = dict(counts)
+        read_latencies = list(latencies['read_ms'])
+        write_latencies = list(latencies['write_ms'])
     summary.update({
         'ratio': args.ratio,
         'duration': args.duration,
@@ -147,6 +180,8 @@ def main():
         'id_min': args.id_min,
         'id_max': args.id_max,
     })
+    summary.update(latency_summary(read_latencies, 'read'))
+    summary.update(latency_summary(write_latencies, 'write'))
 
     print(json.dumps(summary, indent=2, sort_keys=True))
     if args.json_out:
